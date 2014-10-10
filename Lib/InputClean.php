@@ -221,7 +221,7 @@ class InputClean {
 	}
 
 	/**
-	 * Load the global config and merge in any manually entered config too
+	 * Get the global config and merge in any manually entered config too
 	 *
 	 * @param array $config
 	 * @return array $config
