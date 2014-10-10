@@ -276,7 +276,6 @@ class InputCleanTest extends AppTestCase {
 			// HTML is allowed (but XSS will still throw exceptions)
 			'foobar <a href="#" class="css">link</a> foobar',
 			'foobar <> no empty tag',
-			'foobar <!--e--> no comment tag',
 			'foobar <a href="#" no broken tag',
 			'foobar <!--e-- no broken comment tag',
 		];
@@ -287,7 +286,28 @@ class InputCleanTest extends AppTestCase {
 			);
 		}
 
+		// changing things, because we are still calling strip_scripts() for HTML
+		$this->assertEqual(
+			InputClean::clean('foobar <!--e--> no comment tag', 'html', $config),
+			'foobar  no comment tag'
+		);
+		$this->assertEqual(
+			InputClean::clean('foobar <script src="blah"></script> no script tag', 'html', $config),
+			'foobar  no script tag'
+		);
+		$this->assertEqual(
+			InputClean::clean('foobar <script>blah</script> no script tag', 'html', $config),
+			'foobar  no script tag'
+		);
+		$this->assertEqual(
+			InputClean::clean('foobar <iframe src="blah">blah</iframe> no iframe tag', 'html', $config),
+			'foobar  no iframe tag'
+		);
+
 		// verify XSS
+
+		//  unset strip_scripts so XSS is more likely to hit...
+		$config['sanitizationKeyMap']['html']['strip_scripts'] = false;
 		foreach ($this->xss as $i => $v) {
 			// verify XSS Exception
 			try {

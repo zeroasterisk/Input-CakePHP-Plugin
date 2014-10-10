@@ -100,7 +100,7 @@ class InputClean {
 			if (!self::fieldMatch($pattern, $field)) {
 				continue;
 			}
-			return self::clean($value, $sanitizationKey);
+			return self::clean($value, $sanitizationKey, $config);
 		}
 
 		return $value;
@@ -155,6 +155,11 @@ class InputClean {
 			$value = strip_tags($value, $sanitizationConfig['strip_tags']);
 		}
 
+		// strip_scripts if set
+		if (!empty($sanitizationConfig['strip_scripts'])) {
+			$value = self::strip_scripts($value);
+		}
+
 		// sanitization via filter_var
 		if (!empty($sanitizationConfig['filter'])) {
 			if (empty($sanitizationConfig['filterOptions'])) {
@@ -179,6 +184,34 @@ class InputClean {
 			}
 		}
 
+		return $value;
+	}
+
+	/**
+	 * strip scripts from strings
+	 *   (this is a subset of strip_tags())
+	 *
+	 * source: CakePHP 2x Sanitize::stripScripts()
+	 *
+	 * @param string $value
+	 * @return string $value
+	 */
+	static function strip_scripts($value) {
+		if (empty($value) || !is_string($value)) {
+			return $value;
+		}
+		$regex =
+			'/(<link[^>]+rel="[^"]*stylesheet"[^>]*>|' .
+			'<img[^>]*>|style="[^"]*")|' .
+			'<script[^>]*>.*?<\/script>|' .
+			'<style[^>]*>.*?<\/style>|' .
+			'<iframe[^>]*>.*?<\/iframe>|' .
+			'<!--.*?-->/is';
+		$value = preg_replace($regex, '', $value);
+
+		// second pass for any we missed
+		$regex = '/<link[^>]*>|<script[^>]*>|<style[^>]*>|<iframe[^>]*>/is';
+		$value = preg_replace($regex, '', $value);
 		return $value;
 	}
 
@@ -227,7 +260,7 @@ class InputClean {
 	 * @return array $config
 	 */
 	static function config($config = []) {
-		return array_merge(
+		return Hash::merge(
 			self::configGlobal(),
 			$config
 		);
@@ -242,7 +275,7 @@ class InputClean {
 	static function configGlobal($config = []) {
 		if (!empty($config)) {
 			// persist anything passed into this function
-			self::$settings = array_merge(
+			self::$settings = Hash::merge(
 				self::configGlobal(),
 				$config
 			);
@@ -258,8 +291,12 @@ class InputClean {
 		}
 		$global = Configure::read('Input');
 		if (!is_array($global)) {
-			$global = self::configDefault();
+			$global = [];
 		}
+		$global = array_merge(
+			self::configDefault(),
+			$global
+		);
 
 		// persist for future calls
 		self::$settings = $global;
@@ -330,12 +367,14 @@ class InputClean {
 				],
 				'html' => [
 					'strip_tags' => false,
+					'strip_scripts' => true,
 					'filter' => FILTER_UNSAFE_RAW,
 					'filterOptions' => FILTER_FLAG_NO_ENCODE_QUOTES | FILTER_FLAG_STRIP_HIGH,
 					'xss' => true,
 				],
 				'blacklist' => [
 					'strip_tags' => false,
+					'strip_scripts' => true,
 					'filter' => false,
 					'preg_replace' => [
 						// see patternsXSS
@@ -349,6 +388,7 @@ class InputClean {
 				],
 				'anything' => [
 					'strip_tags' => false,
+					'strip_scripts' => false,
 					'filter' => false,
 					'xss' => false,
 				],

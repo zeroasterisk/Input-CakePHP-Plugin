@@ -83,12 +83,15 @@ class InputComponent extends Component {
 	 * @return void
 	 */
 	public function initialize(Controller $controller) {
+		//App::uses('DebugKitDebugger', 'DebugKit.Lib');
+		//DebugKitDebugger::startTimer('Input::initialize');
 		if (!empty($this->settings['auto-clean'])) {
 			$this->request->data = $this->cleanData($this->request->data);
 			$this->request->query = $this->cleanData($this->request->query);
 			//$this->request->named = $this->cleanData($this->request->named);
 			//$this->request->params = $this->cleanData($this->request->params);
 		}
+		//DebugKitDebugger::stopTimer('Input::initialize');
 	}
 
 	/**
@@ -108,7 +111,7 @@ class InputComponent extends Component {
 
 		// clean with In's data cleanup (from this plugin)
 		App::uses('InputClean', 'Input.Lib');
-		$data = InputClean::all($data);
+		$data = InputClean::all($data, $this->settings);
 
 		// clean with a custom CleanData Lib (from the app) if it exists
 		App::import('Lib', 'CleanData');

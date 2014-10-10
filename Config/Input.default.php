@@ -82,12 +82,14 @@ $config = [
 			],
 			'html' => [
 				'strip_tags' => false,
+				'strip_scripts' => true,
 				'filter' => FILTER_UNSAFE_RAW,
 				'filterOptions' => FILTER_FLAG_NO_ENCODE_QUOTES | FILTER_FLAG_STRIP_HIGH,
 				'xss' => true,
 			],
 			'blacklist' => [
 				'strip_tags' => false,
+				'strip_scripts' => true,
 				'filter' => false,
 				'preg_replace' => [
 					// see patternsXSS
@@ -101,6 +103,7 @@ $config = [
 			],
 			'anything' => [
 				'strip_tags' => false,
+				'strip_scripts' => false,
 				'filter' => false,
 				'xss' => false,
 			],
