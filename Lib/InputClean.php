@@ -280,6 +280,13 @@ class InputClean {
 	 */
 	static function configDefault() {
 		return [
+			// map of all fields we will match against
+			//   key
+			//     may be a simple string:  Model.field
+			//     may be a regex:          /Model\.f.+d/i
+			//     may be a fnmatch string: Model.fiel*
+			//   value
+			//     should be a sanitizationKey (see sanitizationKeyMap)
 			'fields' => [
 				'/.*\.email$/' => 'email',
 				'/.*\.url$/'   => 'url',
