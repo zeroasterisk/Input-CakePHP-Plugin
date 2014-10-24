@@ -160,14 +160,18 @@ class InputComponent extends Component {
 	 *  - passedArgs
 	 *  - query
 	 *
+	 * @param array $defaults
 	 * @return array $args
 	 */
-	public function args() {
-		return array_merge(
-			$this->request->named,
-			$this->request->passedArgs,
-			$this->request->query
+	public function args($defaults = []) {
+		$args = array_merge(
+			(array)$defaults,
+			(array)$this->request->named,
+			(array)$this->request->passedArgs,
+			(array)$this->request->query
 		);
+		unset($args['url']);
+		return $args;
 	}
 
 
