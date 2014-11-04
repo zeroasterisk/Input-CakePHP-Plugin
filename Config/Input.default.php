@@ -61,23 +61,32 @@ $config = [
 			// Match unneeded tags
 			'#</*(applet|meta|xml|blink|link|style|script|embed|object|iframe|frame|frameset|ilayer|layer|bgsound|title|base)[^>]*>?#i'
 		],
+		// a map of common tokenizations
+		//   these are patterns, the matches of which will bypass all cleaning
+		//   but xss checking would still "catch" on them if run
+		'tokenizations' => [
+			'emailInArrows' => '#<' . InputClean::emailRegex() . '>#iD',
+		],
 		// a map for sanitizationKey => sanitizationConfig
 		'sanitizationKeyMap' => [
 			'email' => [
 				'strip_tags' => true,
 				'filter' => FILTER_SANITIZE_EMAIL,
+				'tokenize' => ['emailInArrows'],
 				'xss' => true,
 			],
 			'url' => [
 				'strip_tags' => true,
 				'filter' => FILTER_SANITIZE_URL,
 				'filterOptions' => FILTER_FLAG_NO_ENCODE_QUOTES | FILTER_FLAG_STRIP_HIGH,
+				'tokenize' => ['emailInArrows'],
 				'xss' => true,
 			],
 			'string' => [
 				'strip_tags' => true,
 				'filter' => FILTER_SANITIZE_STRING,
 				'filterOptions' => FILTER_FLAG_NO_ENCODE_QUOTES | FILTER_FLAG_ENCODE_HIGH,
+				'tokenize' => ['emailInArrows'],
 				'xss' => true,
 			],
 			'html' => [
@@ -85,6 +94,7 @@ $config = [
 				'strip_scripts' => true,
 				'filter' => FILTER_UNSAFE_RAW,
 				'filterOptions' => FILTER_FLAG_NO_ENCODE_QUOTES | FILTER_FLAG_STRIP_HIGH,
+				'tokenize' => ['emailInArrows'],
 				'xss' => true,
 			],
 			'blacklist' => [
@@ -99,12 +109,14 @@ $config = [
 					'#(<[^>]+[\x00-\x20\"\'\/])style=[^>]*>?#iUu',
 					'#</*(applet|meta|xml|blink|link|style|script|embed|object|iframe|frame|frameset|ilayer|layer|bgsound|title|base)[^>]*>?#i'
 				],
+				'tokenize' => ['emailInArrows'],
 				'xss' => true,
 			],
 			'anything' => [
 				'strip_tags' => false,
 				'strip_scripts' => false,
 				'filter' => false,
+				'tokenize' => ['emailInArrows'],
 				'xss' => false,
 			],
 			'skip' => [],

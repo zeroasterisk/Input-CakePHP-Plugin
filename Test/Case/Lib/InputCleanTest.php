@@ -371,5 +371,148 @@ class InputCleanTest extends AppTestCase {
 		// TODO: more tests to demonstrate functionality
 	}
 
+	// demonstrate that <email@example.com> is not stripped
+	//   even though it normally would be in PHP, without this tokenize process
+	public function testTokenizeInCleanEmailInArrows() {
+		// this config should be on/set by default
+		//   but putting it into this unit-test just to be "sure"
+		$config = InputClean::configDefault();
+		$config['sanitizationKeyMap']['string']['tokenize'] = ['emailInArrows'];
+		// not found, normal
+		$this->assertEqual(
+			InputClean::clean('foobar <strong>html</strong>', 'string', $config),
+			'foobar html'
+		);
+		// email in arrows found, and allowed "<$email>"
+		//   this only makes it past strip_tags() because
+		//   it's first tokenized, and then later, detokenized
+		$this->assertEqual(
+			InputClean::clean('foobar <email@example.com> <strong>html</strong>', 'string', $config),
+			'foobar <email@example.com> html'
+		);
+	}
+
+	// demonstrate that bad emails are not allowed / tokenized
+	//   as such, they are stripped
+	public function testTokenizeInCleanEmailInArrowsBademails() {
+		// this config should be on/set by default
+		//   but putting it into this unit-test just to be "sure"
+		$config = InputClean::configDefault();
+		$config['sanitizationKeyMap']['string']['tokenize'] = ['emailInArrows'];
+		// here are a list of possible "bad" non-emails
+		//   none of which should match our pattern
+		//   so all of them should end up stripped (with the wrapping < >)
+		$badEmails = [
+			'non@email@example.com',
+			'non_email_example_com',
+			'non-email@examplecom',
+			'non-email',
+			'@example.com',
+			'non-email@example.com ',
+			' non-email@example.com',
+			'non-em ail@example.com',
+			"non-em\nail@example.com",
+		];
+		foreach ($badEmails as $badEmail) {
+			$this->assertEqual(
+				InputClean::clean("foobar <$badEmail> <strong>html</strong>", 'string', $config),
+				'foobar  html'
+			);
+		}
+	}
+
+	// disable the emailInArrows tokenize config for string
+	//   and verify that it no longer "allows" it through...
+	public function testTokenizeInCleanEmailInArrowsDisable() {
+		$config = InputClean::configDefault();
+		$config['sanitizationKeyMap']['string']['tokenize'] = false;
+		$this->assertEqual(
+			InputClean::clean('foobar <email@example.com> <strong>html</strong>', 'string', $config),
+			'foobar  html'
+		);
+	}
+
+	// verify that the emailInArrows is defaulted to "on"
+	//   just testing default config
+	public function testTokenizeInConfigIncludesEmailInArrows() {
+		$config = InputClean::configDefault();
+		$this->assertTrue(
+			in_array('emailInArrows', $config['sanitizationKeyMap']['string']['tokenize'])
+		);
+		$this->assertTrue(
+			in_array('emailInArrows', $config['sanitizationKeyMap']['html']['tokenize'])
+		);
+	}
+
+	public function testTokenize() {
+		$this->assertEqual(
+			InputClean::tokenize('foobar', []),
+			'foobar'
+		);
+		$this->assertEqual(
+			InputClean::tokenize('foobar', null),
+			'foobar'
+		);
+		$this->assertEqual(
+			InputClean::$tokens,
+			[]
+		);
+		$result = InputClean::tokenize('foobar', ['#bar#']);
+		$this->assertEqual(
+			count(InputClean::$tokens),
+			1
+		);
+		$token = key(InputClean::$tokens);
+		$orig = current(InputClean::$tokens);
+		$this->assertEqual(
+			$result,
+			"foo{$token}"
+		);
+		$this->assertEqual(
+			$orig,
+			'bar'
+		);
+	}
+
+	public function testDetokenize() {
+		InputClean::tokenizeReset();
+		$this->assertEqual(
+			InputClean::$tokens,
+			[]
+		);
+		$this->assertEqual(
+			InputClean::detokenize('foobar'),
+			'foobar'
+		);
+		InputClean::$tokens = [
+			// replaces case sensetive
+			'b' => 'X',
+			// replaces multiple instances
+			'o' => 'x',
+		];
+		$this->assertEqual(
+			InputClean::detokenize('foobarB'),
+			'fxxXarB'
+		);
+		// auto-detokenize
+		$this->assertEqual(
+			InputClean::$tokens,
+			[]
+		);
+	}
+
+	public function testTokenizeReset() {
+		InputClean::$tokens['abc'] = 'abc-foobar';
+		InputClean::$tokens['xyz'] = 'xyz-foobar';
+		$this->assertEqual(
+			InputClean::tokenizeReset(),
+			null
+		);
+		$this->assertEqual(
+			InputClean::$tokens,
+			[]
+		);
+	}
+
 }
 

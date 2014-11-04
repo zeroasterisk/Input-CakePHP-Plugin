@@ -51,6 +51,13 @@ class InputClean {
 	static $settings = [];
 
 	/**
+	 * Placeholder for $tokens
+	 *
+	 * @var array
+	 */
+	static $tokens = [];
+
+	/**
 	 * Clean an array of $data based on configured config
 	 *   app/Config/InputClean.php
 	 *
@@ -149,6 +156,11 @@ class InputClean {
 
 		$sanitizationConfig = self::sanitizationConfig($sanitizationKey, $config);
 
+		// tokenize if set (allow certain "special" contents through)
+		if (!empty($sanitizationConfig['tokenize'])) {
+			self::tokenizeReset();
+			$value = self::tokenize($value, $sanitizationConfig['tokenize']);
+		}
 
 		// strip_tags if set
 		if (!empty($sanitizationConfig['strip_tags'])) {
@@ -171,6 +183,12 @@ class InputClean {
 		// remove blacklisted strings via preg_replace
 		if (!empty($sanitizationConfig['preg_replace'])) {
 			$value = self::blacklist($value, $sanitizationConfig['preg_replace']);
+		}
+
+		// de-tokenize if set (allow certain "special" contents through)
+		if (!empty($sanitizationConfig['tokenize'])) {
+			$value = self::detokenize($value);
+			self::tokenizeReset();
 		}
 
 		// check for XSS
@@ -269,6 +287,9 @@ class InputClean {
 	/**
 	 * Load the global config (from a file)
 	 *
+	 * If we pass in anything,
+	 *   merge it in with the global config from then on...
+	 *
 	 * @param array $config optionally set into the global config
 	 * @return array $config
 	 */
@@ -304,6 +325,18 @@ class InputClean {
 	}
 
 	/**
+	 * this is a gnarly regex, but appears to be the best/most-rhobust
+	 *
+	 * see: http://stackoverflow.com/questions/12026842/how-to-validate-an-email-address-in-php
+	 * and: https://emailtester.pieterhordijk.com
+	 *
+	 * @return string $emailRegex
+	 */
+	static function emailRegex() {
+		return '(?!(?:(?:\\x22?\\x5C[\\x00-\\x7E]\\x22?)|(?:\\x22?[^\\x5C\\x22]\\x22?)){255,})(?!(?:(?:\\x22?\\x5C[\\x00-\\x7E]\\x22?)|(?:\\x22?[^\\x5C\\x22]\\x22?)){65,}@)(?:(?:[\\x21\\x23-\\x27\\x2A\\x2B\\x2D\\x2F-\\x39\\x3D\\x3F\\x5E-\\x7E]+)|(?:\\x22(?:[\\x01-\\x08\\x0B\\x0C\\x0E-\\x1F\\x21\\x23-\\x5B\\x5D-\\x7F]|(?:\\x5C[\\x00-\\x7F]))*\\x22))(?:\\.(?:(?:[\\x21\\x23-\\x27\\x2A\\x2B\\x2D\\x2F-\\x39\\x3D\\x3F\\x5E-\\x7E]+)|(?:\\x22(?:[\\x01-\\x08\\x0B\\x0C\\x0E-\\x1F\\x21\\x23-\\x5B\\x5D-\\x7F]|(?:\\x5C[\\x00-\\x7F]))*\\x22)))*@(?:(?:(?!.*[^.]{64,})(?:(?:(?:xn--)?[a-z0-9]+(?:-+[a-z0-9]+)*\\.){1,126}){1,}(?:(?:[a-z][a-z0-9]*)|(?:(?:xn--)[a-z0-9]+))(?:-+[a-z0-9]+)*)|(?:\\[(?:(?:IPv6:(?:(?:[a-f0-9]{1,4}(?::[a-f0-9]{1,4}){7})|(?:(?!(?:.*[a-f0-9][:\\]]){7,})(?:[a-f0-9]{1,4}(?::[a-f0-9]{1,4}){0,5})?::(?:[a-f0-9]{1,4}(?::[a-f0-9]{1,4}){0,5})?)))|(?:(?:IPv6:(?:(?:[a-f0-9]{1,4}(?::[a-f0-9]{1,4}){5}:)|(?:(?!(?:.*[a-f0-9]:){5,})(?:[a-f0-9]{1,4}(?::[a-f0-9]{1,4}){0,3})?::(?:[a-f0-9]{1,4}(?::[a-f0-9]{1,4}){0,3}:)?)))?(?:(?:25[0-5])|(?:2[0-4][0-9])|(?:1[0-9]{2})|(?:[1-9]?[0-9]))(?:\\.(?:(?:25[0-5])|(?:2[0-4][0-9])|(?:1[0-9]{2})|(?:[1-9]?[0-9]))){3}))\\]))';
+	}
+
+	/**
 	 * Default config array, if we don't have any config
 	 *
 	 * You can override this with Configure::write('Input');
@@ -316,6 +349,7 @@ class InputClean {
 	 * @return array $config
 	 */
 	static function configDefault() {
+
 		return [
 			// map of all fields we will match against
 			//   key
@@ -346,23 +380,32 @@ class InputClean {
 				// Match unneeded tags
 				'#</*(applet|meta|xml|blink|link|style|script|embed|object|iframe|frame|frameset|ilayer|layer|bgsound|title|base)[^>]*>?#i'
 			],
+			// a map of common tokenizations
+			//   these are patterns, the matches of which will bypass all cleaning
+			//   but xss checking would still "catch" on them if run
+			'tokenizations' => [
+				'emailInArrows' => '#<' . self::emailRegex() . '>#iD',
+			],
 			// a map for sanitizationKey => sanitizationConfig
 			'sanitizationKeyMap' => [
 				'email' => [
 					'strip_tags' => true,
 					'filter' => FILTER_SANITIZE_EMAIL,
+					'tokenize' => ['emailInArrows'],
 					'xss' => true,
 				],
 				'url' => [
 					'strip_tags' => true,
 					'filter' => FILTER_SANITIZE_URL,
 					'filterOptions' => FILTER_FLAG_NO_ENCODE_QUOTES | FILTER_FLAG_STRIP_HIGH,
+					'tokenize' => ['emailInArrows'],
 					'xss' => true,
 				],
 				'string' => [
 					'strip_tags' => true,
 					'filter' => FILTER_SANITIZE_STRING,
 					'filterOptions' => FILTER_FLAG_NO_ENCODE_QUOTES | FILTER_FLAG_ENCODE_HIGH,
+					'tokenize' => ['emailInArrows'],
 					'xss' => true,
 				],
 				'html' => [
@@ -370,6 +413,7 @@ class InputClean {
 					'strip_scripts' => true,
 					'filter' => FILTER_UNSAFE_RAW,
 					'filterOptions' => FILTER_FLAG_NO_ENCODE_QUOTES | FILTER_FLAG_STRIP_HIGH,
+					'tokenize' => ['emailInArrows'],
 					'xss' => true,
 				],
 				'blacklist' => [
@@ -384,12 +428,14 @@ class InputClean {
 						'#(<[^>]+[\x00-\x20\"\'\/])style=[^>]*>?#iUu',
 						'#</*(applet|meta|xml|blink|link|style|script|embed|object|iframe|frame|frameset|ilayer|layer|bgsound|title|base)[^>]*>?#i'
 					],
+					'tokenize' => ['emailInArrows'],
 					'xss' => true,
 				],
 				'anything' => [
 					'strip_tags' => false,
 					'strip_scripts' => false,
 					'filter' => false,
+					'tokenize' => ['emailInArrows'],
 					'xss' => false,
 				],
 				'skip' => [],
@@ -475,6 +521,104 @@ class InputClean {
 			}
 		}
 
+		return false;
+	}
+
+	/**
+	 * Given a string and a list of patterns
+	 * When any pattern matches a portion of the string
+	 * Then replace the matched portion of the string with a token
+	 * And append the token and original value (portion) to self::$tokens
+	 *
+	 * @param string $string
+	 * @param array $patterns
+	 * @return string $string
+	 */
+	static function tokenize($string, $patterns = []) {
+		if (empty($patterns)) {
+			return $string;
+		}
+		if (!is_array($patterns)) {
+			$patterns = [$patterns];
+		}
+		foreach ($patterns as $pattern) {
+			// process pattern
+			$pattern = self::tokenizePattern($pattern);
+			if (empty($pattern)) {
+				continue;
+			}
+			if (!preg_match_all($pattern, $string, $matches)) {
+				continue;
+			}
+			// make tokens
+			foreach ($matches[0] as $match) {
+				$token = md5($match);
+				self::$tokens[$token] = $match;
+			}
+		}
+		if (empty(self::$tokens)) {
+			return $string;
+		}
+		// replace tokens in text
+		$string = str_replace(
+			array_values(self::$tokens),
+			array_keys(self::$tokens),
+			$string
+		);
+		return $string;
+	}
+
+	/**
+	 * Given a string and an already created array of self::$tokens
+	 * When the self::$tokens are not empty
+	 * Then replace all tokens with their original value (portion)
+	 *
+	 * @param string $string
+	 * @return string $string
+	 */
+	static function detokenize($string) {
+		if (empty(self::$tokens)) {
+			return $string;
+		}
+		// replace tokens in text
+		$string = str_replace(
+			array_keys(self::$tokens),
+			array_values(self::$tokens),
+			$string
+		);
+		InputClean::tokenizeReset();
+		return $string;
+	}
+
+	/**
+	 * Reset the list of "current" tokens to empty
+	 *
+	 * @return void
+	 */
+	static function tokenizeReset() {
+		self::$tokens = [];
+	}
+
+	/**
+	 * Translates and validates regex patterns for tokenize
+	 *
+	 * @param string $pattern or $keyForPatternConfig
+	 * @return string $pattern or false
+	 */
+	static function tokenizePattern($pattern) {
+		if (empty($pattern)) {
+			return false;
+		}
+		// is this a valid pattern?
+		if (@preg_match($pattern, null) !== false) {
+			return $pattern;
+		}
+		// is this a "configured" tokenizePattern?
+		$config = self::config();
+		if (!empty($config['tokenizations']) && !empty($config['tokenizations'][$pattern])) {
+			return self::tokenizePattern($config['tokenizations'][$pattern]);
+		}
+		// not a pattern, return false
 		return false;
 	}
 

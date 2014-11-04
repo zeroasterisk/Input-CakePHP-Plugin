@@ -46,6 +46,7 @@ You can set configuration per controller when you initialize the Component
               'filter' => FILTER_SANITIZE_STRING,
               'filterOptions' => FILTER_FLAG_ENCODE_LOW | FILTER_FLAG_ENCODE_HIGH | FILTER_FLAG_ENCODE_AMP
               'preg_replace' => ['/(bad|word|list|here)/gi'],
+              'tokenize' => ['emailInArrows', '#</?(allow|special|tags|via|regex)>#'],
               'xss' => false,
             ),
           )
@@ -117,6 +118,9 @@ you config you want as the value.
       http://php.net/manual/en/filter.filters.flags.php
     preg_replace = array or string
       if specified, we will do a preg_replace($patterns, '', $value)
+    tokenize = array or string
+      if specified, we will allow all matching patterns, bypassing cleaning
+      note: even though we bypass cleaning, we still check for XSS (if checking)
     xss = bool [true]
       if true, we look to see if we can detect any known XSS attack and if so,
       we throw an UnsafeInputException
@@ -138,6 +142,25 @@ XSS Checking
  * style attributes (which are often exploits)
  * etc.
 
+### Input.tokenizations
+
+A List of "known" tokens which can easily be re-used
+
+There is currently only 1 prebuilt tokenizations _(want to recommend more?)_:
+
+* `emailInArrows`
+ * this matches strings such as `<email@example.com>` which would normally be
+   stripped via `strip_tags()`
+
+When you configure sanitizationKeyMap you can specify `tokenize` as an array
+(or single string).  By default we include `emailInArrows` for all keys.
+
+You can pass in none or false to disable.
+
+You can pass in whatever extra patterns you want, to skip cleaning.
+
+You can also configure more `tokenizations` and then pass in the key,
+which will be mapped to the actual pattern at runtime.
 
 ## Usage: Access Input
 
