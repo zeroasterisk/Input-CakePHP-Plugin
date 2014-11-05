@@ -110,6 +110,45 @@ class InputCleanTest extends AppTestCase {
 		);
 	}
 
+	public function testFieldMatchBasic() {
+		$this->assertTrue(
+			InputClean::fieldMatch('basic', 'basic')
+		);
+		$this->assertTrue(
+			InputClean::fieldMatch('Model.field', 'Model.field')
+		);
+		$this->assertTrue(
+			InputClean::fieldMatch('Model.0.has_many', 'Model.0.has_many')
+		);
+		$this->assertFalse(
+			InputClean::fieldMatch('basic', 'Model.basic')
+		);
+		$this->assertFalse(
+			inputclean::fieldmatch('basic', '.basic')
+		);
+		$this->assertFalse(
+			inputclean::fieldmatch('basic', 'basic.')
+		);
+		$this->assertFalse(
+			InputClean::fieldMatch('Model.field', 'Model.')
+		);
+		$this->assertFalse(
+			InputClean::fieldMatch('Model.field', 'field')
+		);
+		$this->assertFalse(
+			InputClean::fieldMatch('Model.field', '.field')
+		);
+		$this->assertFalse(
+			InputClean::fieldMatch('Model.field', 'Mode*.field')
+		);
+		$this->assertFalse(
+			InputClean::fieldMatch('Model.field', 'Mode%.field')
+		);
+		$this->assertFalse(
+			InputClean::fieldMatch('Model.0.has_many', 'Model.1.has_many')
+		);
+	}
+
 	public function testFieldMatchPregMatch() {
 		$pattern = '/Model\..*field$/';
 		$this->assertFalse(
