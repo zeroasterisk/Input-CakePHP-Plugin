@@ -506,13 +506,27 @@ class InputCleanTest extends AppTestCase {
 
 	// verify that the emailInArrows is defaulted to "on"
 	//   just testing default config
+	//     email = yes
+	//     string = yes
+	//     html = no
+	//     anything = no
+	//     skip = no
 	public function testTokenizeInConfigIncludesEmailInArrows() {
 		$config = InputClean::configDefault();
 		$this->assertTrue(
-			in_array('emailInArrows', $config['sanitizationKeyMap']['string']['tokenize'])
+			in_array('emailInArrows', $config['sanitizationKeyMap']['email']['tokenize'])
 		);
 		$this->assertTrue(
+			in_array('emailInArrows', $config['sanitizationKeyMap']['string']['tokenize'])
+		);
+		$this->assertFalse(
 			in_array('emailInArrows', $config['sanitizationKeyMap']['html']['tokenize'])
+		);
+		$this->assertFalse(
+			in_array('emailInArrows', $config['sanitizationKeyMap']['anything']['tokenize'])
+		);
+		$this->assertFalse(
+			array_key_exists('tokenize', $config['sanitizationKeyMap']['skip'])
 		);
 	}
 
@@ -611,6 +625,27 @@ The following errors were noted for cluster words: substitution of /n/ for /kl/,
 Production of multisyllabic words was also assessed on the CAAP.  Speech errors included substitutions, omissions and distortions of various speech sounds; specifically, substitution of /d/ for /k/and /d/ for /gr/ in the initial position of words, and deletion of /f/and /h/ in the initial position of words.  Substitutions of /w/ for /l/ /t/ for /nt/ occurred in the final position of words.
 A summary of phonological processes on the CAAP indicated that the following processes are still present even though they are no longer appropriate for the child’s chronological age:  cluster reduction, stopping, and prevocalic voicing.</div></div></li></ul></div></li><li class="clipboard-category   " data-category-id="2" data-category-title="Redirect #1"><div class="clipboard-category-header-container"><h3 class="clipboard-category-header">Redirect #1</h3></div><div class="clipboard-category-content   "><ul class="clipboard-entries"><li class="clipboard-entry " data-entry-map-id="0" data-entry-content="Redirect #1"><div class="clipboard-entry-header-container"></div><div class="clipboard-entry-content cause-effect-container" style="word-wrap:break-word;"><div class="cause"><span class="clipboard-entry-time">12:44:53 AM</span> &nbsp;Redirect #1</div><div class="effect">Avoid selecting multiple assessments to evaluate the same topic area. </div></div></li></ul></div></li><li class="clipboard-category   " data-category-id="3" data-category-title="Oral Peripheral"><div class="clipboard-category-header-container"><h3 class="clipboard-category-header">Oral Peripheral</h3></div><div class="clipboard-category-content   "><ul class="clipboard-entries"><li class="clipboard-entry " data-entry-map-id="0" data-entry-content="Oral Mech-Pediatric"><div class="clipboard-entry-header-container"></div><div class="clipboard-entry-content cause-effect-container" style="word-wrap:break-word;"><div class="cause"><span class="clipboard-entry-time">12:45:32 AM</span> &nbsp;Oral Mech-Pediatric</div><div class="effect">This assessment is user driven, edit this field with your results.</div></div></li></ul></div></li><li class="clipboard-category   " data-category-id="4" data-category-title="Social and Emotional"><div class="clipboard-category-header-container"><h3 class="clipboard-category-header">Social and Emotional</h3></div><div class="clipboard-category-content   "><ul class="clipboard-entries"><li class="clipboard-entry " data-entry-map-id="0" data-entry-content="Play Observation"><div class="clipboard-entry-header-container"></div><div class="clipboard-entry-content cause-effect-container" style="word-wrap:break-word;"><div class="cause"><span class="clipboard-entry-time">12:47:07 AM</span> &nbsp;Play Observation</div><div class="effect">This assessment is user driven, edit this field with your results.</div></div></li></ul></div></li></ul></div></li><li class="clipboard-section diagnosis  " data-section-id="diagnosis"><div class="clipboard-section-header-container"><h2 class="clipboard-section-header"><span class="clipboard-section-icon"></span>Diagnosis</h2></div><div class="clipboard-section-content "><ul class="clipboard-categories"><li class="clipboard-category   " data-category-id="1" data-category-title="Articulation/ Phonology/ Speech Disorders"><div class="clipboard-category-header-container"><h3 class="clipboard-category-header">Articulation/ Phonology/ Speech Disorders</h3></div><div class="clipboard-category-content   "><ul class="clipboard-diagnosis-entries"><li class="clipboard-entry " data-entry-map-id="0" data-entry-content="Phonological Impairment"><div class="clipboard-entry-header-container"><span class="clipboard-entry-time">12:48:00 AM</span>&nbsp;<span class="clipboard-entry-name">Phonological Impairment</span></div></li></ul></div></li></ul></div></li></ul></div>
 EOT;
+
+		$config = InputClean::configDefault();
+
+		// "skipping" is "same"
+		$result = InputClean::clean($html, 'skip', $config);
+		$this->assertEqual($result, $html);
+
+		// "anything" is "same" (but did check for XSS)
+		$result = InputClean::clean($html, 'anything', $config);
+		$this->assertEqual($result, $html);
+
+		// "html" is "changed" (but did clean scripts and check for XSS)
+		$result = InputClean::clean($html, 'html', $config);
+		$this->assertNotEqual($result, $html);
+
+		// "string" is "changed" stripped tags
+		$result = InputClean::clean($html, 'string', $config);
+		$this->assertNotEqual($result, $html);
+
+		// ok, normal data processing example
+		//   'html' is not configured so it should behave like "string"
 		$data = [
 			'html' => $html,
 			'savedGameId' => '545aa00c-5a14-4f99-ba6a-4a560ad18582',
@@ -618,7 +653,12 @@ EOT;
 			'mode' => 'learning',
 		];
 		$result = InputClean::all($data);
-		debug($result);
+		$this->assertNotEqual($result, $data);
+		$this->assertEqual(
+			$result['html'],
+			InputClean::clean($html, 'string', $config)
+		);
+
 	}
 
 }
