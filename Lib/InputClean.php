@@ -372,8 +372,8 @@ class InputClean {
 			//   (NOTE: some of these might be too strict if you want to allow all HTML)
 			//   bypass by using the anything sanitizationKey
 			'patternsXSS' => [
-				// Match any attribute starting with "on" or xmlns
-				'#(<[^>]+[\x00-\x20\"\'\/])(on|xmlns)[^>]*>?#iUu',
+				// Match any attribute starting with "on" and having 0-10 chars before "=" or starting with xmlns
+				'#(<[^>]+[\x00-\x20\"\'\/])(on*[a-z]{0,15}+=|xmlns)[^>]*>?#iUu',
 
 				// Match javascript:, livescript:, vbscript: and mocha: protocols
 				//'!((java|live|vb)script|mocha|feed|data):(\w)*!iUu',
@@ -428,7 +428,7 @@ class InputClean {
 					'filter' => false,
 					'preg_replace' => [
 						// see patternsXSS
-						'#(<[^>]+[\x00-\x20\"\'\/])(on|xmlns)[^>]*>?#iUu',
+						'#(<[^>]+[\x00-\x20\"\'\/])(on*[a-z]{0,15}+=|xmlns)[^>]*>?#iUu',
 						'!((java|live|vb)script|mocha|feed|data):(\w)*!iUu',
 						'#-moz-binding[\x00-\x20]*:#u',
 						'#(<[^>]+[\x00-\x20\"\'\/])style=[^>]*>?#iUu',

@@ -408,6 +408,12 @@ class InputCleanTest extends AppTestCase {
 		$v = 'foobar <a href="#" class="badstuff">foo</a>bar';
 		$this->assertFalse(InputClean::detectXSS($v));
 
+		// fixed failing on[event] matching and matching non-attribute "on", e.g. onclick vs onion
+		$v = '<button onclick="barFunction()">foo me</button>';
+		$this->assertTrue(InputClean::detectXSS($v));
+		$v = '<a href="http://example.com/onion/blah/blah/?cat=dog';
+		$this->assertFalse(InputClean::detectXSS($v));
+
 		// fixed a problem with "data:123" matching
 		$v = 'foobar data:100 yxz';
 		$this->assertFalse(InputClean::detectXSS($v));
